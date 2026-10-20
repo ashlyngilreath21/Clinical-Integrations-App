@@ -1,0 +1,633 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Clinical Integrations in Sports | Live Cloud Synced</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: { 50: '#f0fdf4', 500: '#22c55e', 600: '#16a34a', 900: '#14532d' }
+          }
+        }
+      }
+    }
+    window.onerror = function(msg, url, line) {
+      const root = document.getElementById('root');
+      if (root) {
+        root.innerHTML = `<div style="background:#1e1b4b;color:#f87171;padding:24px;margin:20px;border-radius:12px;font-family:monospace;border:1px solid #ef4444;">
+          <h3 style="font-weight:bold;font-size:16px;margin-bottom:8px;">⚠️ Script Diagnostic Error</h3>
+          <p><b>Message:</b> ${msg}</p>
+          <p><b>Line:</b> ${line}</p>
+        </div>`;
+      }
+    };
+  </script>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen font-sans antialiased">
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useEffect } = React;
+
+    const FIREBASE_DATABASE_URL = "https://sportselectivelecture-default-rtdb.firebaseio.com/";
+
+    const casesData = [
+      {
+        id: 1,
+        title: "Case 1: Non-Contact Knee Injury",
+        category: "Lower Extremity & Biomechanics",
+        youtubeId: "SIGMQ3HlbfI",
+        questions: [
+          { stage: "1. Mechanism of Injury", question: "Analyze this video clip. What primary biomechanical force vector caused the injury during plant-and-cut deceleration?", options: [{ id: "A", label: "Dynamic valgus collapse with internal tibial rotation", isCorrect: true }, { id: "B", label: "Pure knee hyperextension with posterior translation", isCorrect: false }, { id: "C", label: "Varus stress with external tibial rotation", isCorrect: false }, { id: "D", label: "Direct anterior force applied to patella", isCorrect: false }], explanation: "Non-contact ACL injuries typically occur during dynamic valgus, internal tibial rotation, and deceleration." },
+          { stage: "2. Differential Diagnosis", question: "Given the mechanism and immediate joint effusion ('pop' reported), what is your primary differential diagnosis?", options: [{ id: "A", label: "Acute ACL rupture with possible lateral meniscus tear", isCorrect: true }, { id: "B", label: "Isolated Grade 1 MCL sprain", isCorrect: false }, { id: "C", label: "Patellar tendon rupture", isCorrect: false }, { id: "D", label: "Posterior Cruciate Ligament (PCL) tear", isCorrect: false }], explanation: "Rapid hemarthrosis following a non-contact 'pop' carries a high predictive value for acute ACL disruption." },
+          { stage: "3. Acute On-Field Management", question: "What is the most sensitive sideline assessment maneuver prior to joint effusion?", options: [{ id: "A", label: "Lachman Test and Pivot-Shift Test", isCorrect: true }, { id: "B", label: "McMurray Test in hyperflexion", isCorrect: false }, { id: "C", label: "Standing weight-bearing radiographs", isCorrect: false }, { id: "D", label: "Full leg cast placement", isCorrect: false }], explanation: "Lachman test is the gold-standard physical exam for acute ACL laxity." },
+          { stage: "4. Interventions & Surgery", question: "Which surgical autograft is gold-standard for high physical demand pivoting athletes?", options: [{ id: "A", label: "Bone-Patellar Tendon-Bone (BPTB) autograft", isCorrect: true }, { id: "B", label: "Allograft tissue from cadaver donor", isCorrect: false }, { id: "C", label: "Synthetic polyester ligament", isCorrect: false }, { id: "D", label: "Primary direct suture repair without graft", isCorrect: false }], explanation: "BPTB autografts provide rigid bone-to-bone fixation and lower re-tear rates." },
+          { stage: "5. Return to Sport Clearance", question: "What criterion is mandatory before clearing this athlete for full contact?", options: [{ id: "A", label: ">90% Limb Symmetry Index (LSI) on strength/hop tests + psychological readiness", isCorrect: true }, { id: "B", label: "6 months calendar time only", isCorrect: false }, { id: "C", label: "Normal resting knee radiograph", isCorrect: false }, { id: "D", label: "1-mile treadmill jog without brace", isCorrect: false }], explanation: "Criteria-based clearance (>90% LSI & ACL-RSI readiness) significantly lowers secondary tear risk." }
+        ]
+      },
+      {
+        id: 2,
+        title: "Case 2: Acute Shoulder Dislocation",
+        category: "Upper Extremity & Joint Stability",
+        youtubeId: "4GnigsACQTE",
+        questions: [
+          { stage: "1. Mechanism of Injury", question: "What arm position forces an anterior glenohumeral dislocation?", options: [{ id: "A", label: "Forced Abduction and External Rotation", isCorrect: true }, { id: "B", label: "Adduction and Internal Rotation", isCorrect: false }, { id: "C", label: "Forward Flexion at 180 degrees", isCorrect: false }, { id: "D", label: "Extension at side", isCorrect: false }], explanation: "Abduction and external rotation lever the humeral head anteriorly out of the glenoid fossa." },
+          { stage: "2. Differential Diagnosis", question: "Which nerve and labral pathology must be assessed post-dislocation?", options: [{ id: "A", label: "Axillary nerve & Bankart / Hill-Sachs lesions", isCorrect: true }, { id: "B", label: "Radial nerve & SLAP lesion", isCorrect: false }, { id: "C", label: "Long thoracic nerve & Supraspinatus tear", isCorrect: false }, { id: "D", label: "Ulnar nerve & Clavicle fracture", isCorrect: false }], explanation: "Axillary nerve wraps around the surgical neck; Bankart lesions involve anterior labral avulsions." },
+          { stage: "3. Acute On-Field Management", question: "What is the primary sideline action before reduction?", options: [{ id: "A", label: "Assess neurovascular status (axillary nerve sensation & distal pulses)", isCorrect: true }, { id: "B", label: "Force internal rotation immediately", isCorrect: false }, { id: "C", label: "Apply collarbone sling and return to play", isCorrect: false }, { id: "D", label: "Heat pack application", isCorrect: false }], explanation: "Always verify intact distal sensation and pulses before attempting reduction." },
+          { stage: "4. Interventions & Rehabilitation", question: "Which muscle group provides dynamic stabilization following reduction?", options: [{ id: "A", label: "Rotator cuff muscles & scapular humeral rhythm dynamic stabilizers", isCorrect: true }, { id: "B", label: "Biceps brachii exclusively", isCorrect: false }, { id: "C", label: "Pectoralis major", isCorrect: false }, { id: "D", label: "Trapezius upper fibers", isCorrect: false }], explanation: "Dynamic stabilization relies heavily on subscapularis and posterior rotator cuff compression." },
+          { stage: "5. Return to Sport Clearance", question: "When is an athlete cleared for full collision/throwing sports?", options: [{ id: "A", label: "Full painless ROM, symmetric strength, negative apprehension test, and sport-specific clearance", isCorrect: true }, { id: "B", label: "When skin bruising fades at 5 days", isCorrect: false }, { id: "C", label: "After 12 weeks continuous sling rest", isCorrect: false }, { id: "D", label: "Immediately upon achieving 90-degree elevation", isCorrect: false }], explanation: "Functional clearance requires zero apprehension in overhead/contact positions." }
+        ]
+      },
+      {
+        id: 3,
+        title: "Case 3: Concussion & Exertional Heat Illness",
+        category: "Neurological & Environmental Emergencies",
+        youtubeId: "L_LUpnjgPso",
+        questions: [
+          { stage: "1. Mechanism of Injury", question: "An athlete collapses in hot, humid weather displaying confusion. What diagnostic threshold confirms Exertional Heat Stroke (EHS)?", options: [{ id: "A", label: "Core (rectal) body temperature > 104°F (40.5°C) accompanied by CNS dysfunction", isCorrect: true }, { id: "B", label: "Oral temperature > 99.5°F (37.5°C) with dry skin", isCorrect: false }, { id: "C", label: "Axillary temperature > 101°F (38.3°C) with active sweating", isCorrect: false }, { id: "D", label: "Tympanic temperature > 102°F (38.9°C) with mild fatigue", isCorrect: false }], explanation: "EHS is defined by core body temperature > 104°F (40.5°C) and central nervous system dysfunction." },
+          { stage: "2. Differential Diagnosis", question: "During a head impact in hot weather, how do you differentiate acute EHS from a head-injury-induced concussion?", options: [{ id: "A", label: "Rapid core thermometry (rectal) combined with systemic collapse signs", isCorrect: true }, { id: "B", label: "Assessing pupil reactivity only", isCorrect: false }, { id: "C", label: "Palpating the temporal artery pulse", isCorrect: false }, { id: "D", label: "Measuring peripheral oxygen saturation", isCorrect: false }], explanation: "Rectal thermometry provides the definitive diagnostic differentiation for exertional hyperthermia." },
+          { stage: "3. Acute On-Field Management", question: "What is the mandatory immediate treatment principle for an athlete diagnosed with Exertional Heat Stroke before EMS transport?", options: [{ id: "A", label: "'Cool first, transport second' using immediate Cold Water Immersion (CWI)", isCorrect: true }, { id: "B", label: "Immediate load into ambulance with ice packs on forehead", isCorrect: false }, { id: "C", label: "Administer oral electrolyte drinks while walking the athlete", isCorrect: false }, { id: "D", label: "Apply fanning and place in Trendelenburg position", isCorrect: false }], explanation: "Aggressive cold water immersion prior to transport drastically reduces mortality rates." },
+          { stage: "4. Interventions & Rehabilitation", question: "What dictates progression through a graduated return-to-play protocol following a concussion?", options: [{ id: "A", label: "Stepwise, symptom-limited progression where each step is completed without symptom exacerbation", isCorrect: true }, { id: "B", label: "A strict 7-day calendar timeline regardless of symptoms", isCorrect: false }, { id: "C", label: "Achieving maximum heart rate on day one of rehabilitation", isCorrect: false }, { id: "D", label: "Immediate clearance once resting headache resolves", isCorrect: false }], explanation: "Return-to-play is strictly symptom-guided across graduated physical load stages." },
+          { stage: "5. Return to Sport Clearance", question: "What milestone is required before clearing an athlete who suffered exertional heat stroke and concussion?", options: [{ id: "A", label: "Complete symptom resolution, cleared neurocognitive testing, and demonstrated heat acclimatization/tolerance", isCorrect: true }, { id: "B", label: "Passing a 5-minute treadmill test", isCorrect: false }, { id: "C", label: "Absence of headache while taking NSAIDs", isCorrect: false }, { id: "D", label: "3 weeks of strict indoor bed rest", isCorrect: false }], explanation: "Full clearance requires clinical recovery across cognitive, emotional, and environmental tolerance domains." }
+        ]
+      },
+      {
+        id: 4,
+        title: "Case 4: Tibia-Fibula Fracture",
+        category: "Lower Extremity Traumatic Fractures",
+        youtubeId: "9bZkp7q19f0",
+        questions: [
+          { stage: "1. Mechanism of Injury", question: "A soccer player absorbs a direct high-energy lateral kick to the mid-shaft lower leg. What force vector causes a displaced tib-fib fracture?", options: [{ id: "A", label: "High-velocity transverse shearing force and direct axial loading", isCorrect: true }, { id: "B", label: "Isolated low-energy torsional rotation of the ankle", isCorrect: false }, { id: "C", label: "Hyperflexion of the hallucis longus muscle", isCorrect: false }, { id: "D", label: "Repetitive low-amplitude microtrauma over 6 months", isCorrect: false }], explanation: "Direct high-energy impact across the unshielded tibia produces transverse or comminuted fractures." },
+          { stage: "2. Differential Diagnosis", question: "What acute neurovascular complication must be monitored closely in open or displaced mid-shaft tibial fractures?", options: [{ id: "A", label: "Acute Compartment Syndrome and distal posterior tibial/dorsalis pedis arterial compromise", isCorrect: true }, { id: "B", label: "Femoral nerve palsy", isCorrect: false }, { id: "C", label: "Retrocalcaneal bursitis", isCorrect: false }, { id: "D", label: "Saphenous vein thrombosis", isCorrect: false }], explanation: "Increased fascial compartment pressures or vascular laceration are true surgical emergencies." },
+          { stage: "3. Acute On-Field Management", question: "What is the gold-standard immediate sideline response for an obvious limb-threatening angular fracture?", options: [{ id: "A", label: "Immediate manual stabilization, distal neurovascular assessment, and rigid splinting prior to transport", isCorrect: true }, { id: "B", label: "Attempt forceful reduction and walk the athlete to the bench", isCorrect: false }, { id: "C", label: "Apply direct ice compression directly over the exposed bone fragment", isCorrect: false }, { id: "D", label: "Flex the knee to 90 degrees and apply a tight elastic wrap", isCorrect: false }], explanation: "Splinting the limb in the position found prevents further soft tissue and neurovascular trauma." },
+          { stage: "4. Interventions & Surgery", question: "Which surgical intervention is standard for acute displaced adult mid-shaft tibial fractures?", options: [{ id: "A", label: "Intramedullary (IM) Nailing fixation", isCorrect: true }, { id: "B", label: "Short leg fiberglass walking cast placement on day 1", isCorrect: false }, { id: "C", label: "Percutaneous needle aspiration", isCorrect: false }, { id: "D", label: "Isolated elastic compression dressing", isCorrect: false }], explanation: "IM nailing provides rigid internal load-sharing fixation allowing early mobilization." },
+          { stage: "5. Return to Sport Clearance", question: "What objective radiologic and clinical evidence is needed before returning to collision sports?", options: [{ id: "A", label: "Radiographic bridging callus on 3 of 4 cortices, full weight-bearing strength, and pain-free single-leg impact loading", isCorrect: true }, { id: "B", label: "6 weeks elapsed calendar time regardless of X-ray findings", isCorrect: false }, { id: "C", label: "Absence of skin bruising at the surgical site", isCorrect: false }, { id: "D", label: "Ability to walk with a single crutch", isCorrect: false }], explanation: "Bone healing confirmation via bridging callus and restored mechanical strength are mandatory." }
+        ]
+      },
+      {
+        id: 5,
+        title: "Case 5: Accidental / Exertional Hypothermia",
+        category: "Environmental & Thermal Emergencies",
+        youtubeId: "kJQP7kiw5Fk",
+        questions: [
+          { stage: "1. Mechanism of Injury", question: "An endurance trail runner in cold, wet, windy conditions exhibits severe shivering and slurred speech. What core temperature range defines moderate hypothermia?", options: [{ id: "A", label: "Core body temperature between 82.4°F and 89.6°F (28°C to 32°C)", isCorrect: true }, { id: "B", label: "Core body temperature between 95°F and 98.6°F (35°C to 37°C)", isCorrect: false }, { id: "C", label: "Core body temperature below 70°F (21°C)", isCorrect: false }, { id: "D", label: "Core body temperature between 100°F and 102°F (37.7°C to 38.8°C)", isCorrect: false }], explanation: "Moderate hypothermia is characterized by core temperatures dropping between 82.4°F and 89.6°F." },
+          { stage: "2. Differential Diagnosis", question: "What cardiovascular arrhythmia risk arises when handling an athlete with severe accidental hypothermia?", options: [{ id: "A", label: "Fatal Ventricular Fibrillation (V-Fib) induced by rough mechanical handling", isCorrect: true }, { id: "B", label: "Isolated sinus bradycardia without clinical significance", isCorrect: false }, { id: "C", label: "Acute supraventricular tachycardia (SVT)", isCorrect: false }, { id: "D", label: "Right bundle branch block", isCorrect: false }], explanation: "Hypothermic myocardium is extremely irritable; rough movement can trigger ventricular fibrillation." },
+          { stage: "3. Acute On-Field Management", question: "What is the initial field management priority for an athlete suffering from moderate environmental hypothermia?", options: [{ id: "A", label: "Remove wet clothing, insulate core with dry blankets/vapor barrier, and rewarm passively", isCorrect: true }, { id: "B", label: "Submerge the athlete in an ice-water bath immediately", isCorrect: false }, { id: "C", label: "Force the athlete to perform intense jumping jacks", isCorrect: false }, { id: "D", label: "Administer oral alcohol or caffeine drinks", isCorrect: false }], explanation: "Stopping further heat loss and passive core rewarming are the primary early field goals." },
+          { stage: "4. Interventions & Medical Care", question: "What active internal rewarming technique is indicated in emergency medical settings for severe core hypothermia?", options: [{ id: "A", label: "Warmed intravenous fluids (38-42°C) and humidified oxygen", isCorrect: true }, { id: "B", label: "External heating pads directly applied to frostbitten skin", isCorrect: false }, { id: "C", label: "Rapid immersion in hot boiling water", isCorrect: false }, { id: "D", label: "High-dose vasoconstrictor medications", isCorrect: false }], explanation: "Active core rewarming with warmed IV fluids prevents afterdrop and stabilizes cardiac rhythm." },
+          { stage: "5. Return to Sport Clearance", question: "When is an athlete cleared to resume outdoor competition following severe accidental hypothermia?", options: [{ id: "A", label: "Complete normalization of core body temperature, resolution of metabolic imbalances, and normal EKG", isCorrect: true }, { id: "B", label: "24 hours after shivering stops", isCorrect: false }, { id: "C", label: "Once peripheral capillary refill returns to under 3 seconds", isCorrect: false }, { id: "D", label: "When ambient outdoor temperature reaches 70°F", isCorrect: false }], explanation: "Full clearance requires verified metabolic and cardiovascular recovery." }
+        ]
+      },
+      {
+        id: 6,
+        title: "Case 6: Hand/Wrist Deformity (Mallet Finger)",
+        category: "Upper Extremity & Hand Trauma",
+        youtubeId: "jNQXAC9IVRw",
+        questions: [
+          { stage: "1. Mechanism of Injury", question: "A baseball player experiences an axial blow to the tip of an extended finger, resulting in inability to actively extend the DIP joint. What structure is damaged?", options: [{ id: "A", label: "Terminal extensor tendon disruption at the distal interphalangeal (DIP) joint", isCorrect: true }, { id: "B", label: "Flexor digitorum profundus (FDP) tendon avulsion", isCorrect: false }, { id: "C", label: "Volar plate rupture at the PIP joint", isCorrect: false }, { id: "D", label: "Ulnar collateral ligament tear of the thumb", isCorrect: false }], explanation: "Axial impact on an extended fingertip ruptures the terminal extensor tendon." },
+          { stage: "2. Differential Diagnosis", question: "What bony complication must be ruled out via plain radiography in a suspect Mallet finger presentation?", options: [{ id: "A", label: "Bony Mallet fracture (avulsion fracture involving >33% of DIP articular surface)", isCorrect: true }, { id: "B", label: "Scaphoid waist fracture", isCorrect: false }, { id: "C", label: "Bennett fracture-dislocation", isCorrect: false }, { id: "D", label: "Colles fracture of distal radius", isCorrect: false }], explanation: "Large articular avulsion fractures require surgical evaluation for joint subluxation." },
+          { stage: "3. Acute On-Field Management", question: "What is the hallmark physical examination finding of an acute Mallet finger deformity?", options: [{ id: "A", label: "Resting flexion deformity at the DIP joint with inability to actively extend the fingertip", isCorrect: true }, { id: "B", label: "Inability to flex the PIP joint into a full fist", isCorrect: false }, { id: "C", label: "Fixed extension deformity at the MCP joint", isCorrect: false }, { id: "D", label: "Loss of sensation over thenar eminence", isCorrect: false }], explanation: "The patient cannot straighten the tip of the finger, leaving it resting in slight flexion." },
+          { stage: "4. Interventions & Splinting", question: "What is the definitive non-operative splinting protocol for a closed, tendinous Mallet finger?", options: [{ id: "A", label: "Continuous 24/7 DIP extension splinting for 6 to 8 weeks without allowing DIP flexion", isCorrect: true }, { id: "B", label: "Night-time-only splinting for 2 weeks", isCorrect: false }, { id: "C", label: "Immobilization of wrist and elbow in a thumb spica cast", isCorrect: false }, { id: "D", label: "Buddy taping PIP joint while leaving DIP joint free", isCorrect: false }], explanation: "Uninterrupted continuous extension splinting allows the tendon ends to scar down and heal." },
+          { stage: "5. Return to Sport Clearance", question: "When can an athlete safely return to play with a Mallet finger injury?", options: [{ id: "A", label: "Immediately with protective extension splinting during sport, provided DIP joint never flexes", isCorrect: true }, { id: "B", label: "Only after 12 weeks of complete rest from all athletic activity", isCorrect: false }, { id: "C", label: "As soon as skin bruising over finger resolves", isCorrect: false }, { id: "D", label: "Once full passive DIP flexion is achieved", isCorrect: false }], explanation: "Athletes can compete safely with custom thermoplastic splint protection safeguarding the DIP joint." }
+        ]
+      },
+      {
+        id: 7,
+        title: "Case 7: Ulnar Collateral Ligament (UCL) Tear",
+        category: "Upper Extremity & Throwing Mechanics",
+        youtubeId: "5NV6Rdv1a3I",
+        questions: [
+          { stage: "1. Mechanism of Injury", question: "During which phase of the throwing motion is valgus stress on the elbow joint at its absolute maximum?", options: [{ id: "A", label: "Late cocking and early acceleration phase", isCorrect: true }, { id: "B", label: "Deceleration and follow-through phase", isCorrect: false }, { id: "C", label: "Wind-up and initial balance point", isCorrect: false }, { id: "D", label: "Mid-arm swing during preparation", isCorrect: false }], explanation: "Extreme external rotation and high angular velocity generate peak valgus torque across the medial elbow." },
+          { stage: "2. Differential Diagnosis", question: "What clinical test specifically assesses the structural integrity of the anterior bundle of the UCL?", options: [{ id: "A", label: "Moving Valgus Stress Test and Valgus Stress Test at 30 degrees elbow flexion", isCorrect: true }, { id: "B", label: "Cozen's Test for lateral epicondylitis", isCorrect: false }, { id: "C", label: "Phalen's Test for carpal tunnel syndrome", isCorrect: false }, { id: "D", label: "Tinel's sign at wrist", isCorrect: false }], explanation: "Applying valgus stress with the elbow flexed to 30 degrees isolates the medial collateral ligament." },
+          { stage: "3. Acute On-Field Management", question: "What accompanying peripheral nerve symptom must be screened for following an acute UCL tear?", options: [{ id: "A", label: "Ulnar nerve paresthesias (numbness/tingling in 4th and 5th digits)", isCorrect: true }, { id: "B", label: "Median nerve motor palsy affecting thumb abduction", isCorrect: false }, { id: "C", label: "Radial nerve deficit causing wrist drop", isCorrect: false }, { id: "D", label: "Axillary nerve loss over deltoid", isCorrect: false }], explanation: "The ulnar nerve runs adjacent to the UCL in the cubital tunnel and is frequently irritated." },
+          { stage: "4. Interventions & Surgery", question: "When is surgical reconstruction (Tommy John surgery) indicated over conservative management?", options: [{ id: "A", label: "In competitive overhead throwers with complete tears requiring high-velocity valgus stability", isCorrect: true }, { id: "B", label: "For every minor low-grade UCL sprain", isCorrect: false }, { id: "C", label: "Only when the elbow joint is permanently locked in flexion", isCorrect: false }, { id: "D", label: "As a preventative measure before high school participation", isCorrect: false }], explanation: "Competitive throwers with complete tears require reconstruction to withstand pitching torque." },
+          { stage: "5. Return to Sport Clearance", question: "What milestone is mandatory prior to resuming competitive pitching post-reconstruction?", options: [{ id: "A", label: "Completion of a progressive Interval Throwing Program (ITP) and pain-free max-velocity throwing", isCorrect: true }, { id: "B", label: "Tossing a tennis ball from 30 feet away once", isCorrect: false }, { id: "C", label: "Achieving 100% grip strength at 1 month post-op", isCorrect: false }, { id: "D", label: "Passing a 5-mile endurance run test", isCorrect: false }], explanation: "Rebuilding tissue tolerance through a multi-month interval throwing program is essential post-op." }
+        ]
+      },
+      {
+        id: 8,
+        title: "Case 8: Acute Cervical Spine Injury",
+        category: "Spinal Trauma & Emergency Preparedness",
+        youtubeId: "9bZkp7q19f0",
+        questions: [
+          { stage: "1. Mechanism of Injury", question: "What axial force mechanism is responsible for the vast majority of catastrophic cervical spine fractures in contact sports?", options: [{ id: "A", label: "Axial loading with the neck in slight flexion (buckling of the cervical spine)", isCorrect: true }, { id: "B", label: "Pure rotation in maximum extension", isCorrect: false }, { id: "C", label: "Lateral side-bending against resistance", isCorrect: false }, { id: "D", label: "Passive traction on the brachial plexus", isCorrect: false }], explanation: "Axial loading with the neck slightly flexed causes vertebral failure and buckling." },
+          { stage: "2. Differential Diagnosis", question: "What clinical presentation distinguishes a transient 'burner/stinger' from a red-flag cervical spine fracture?", options: [{ id: "A", label: "Unilateral arm symptoms that resolve within minutes vs. bilateral neurological deficits or spinal midline pain", isCorrect: true }, { id: "B", label: "Inability to rotate the shoulder joint", isCorrect: false }, { id: "C", label: "Loss of sensation on the tip of the nose", isCorrect: false }, { id: "D", label: "Severe lower lumbar muscle spasm", isCorrect: false }], explanation: "Bilateral symptoms or midline neck tenderness indicate potential structural spine injury requiring immobilization." },
+          { stage: "3. Acute On-Field Management", question: "What is the golden rule of emergency management for an unconscious or spine-injured athlete on the field?", options: [{ id: "A", label: "Maintain manual in-line stabilization, leave helmet/shoulder pads ON, and log-roll onto spine board", isCorrect: true }, { id: "B", label: "Remove helmet immediately to check pupillary response", isCorrect: false }, { id: "C", label: "Sit the athlete up slowly to assess balance", isCorrect: false }, { id: "D", label: "Perform passive cervical range of motion testing on turf", isCorrect: false }], explanation: "Leaving equipment on maintains neutral alignment and minimizes secondary spinal cord trauma." },
+          { stage: "4. Interventions & Emergency Care", question: "When immobilizing a football player with suspected cervical spine trauma, how should equipment be handled?", options: [{ id: "A", label: "Keep helmet and shoulder pads intact as a unit to maintain neutral cervical alignment", isCorrect: true }, { id: "B", label: "Remove the helmet only and leave shoulder pads in place", isCorrect: false }, { id: "C", label: "Remove shoulder pads only and leave helmet in place", isCorrect: false }, { id: "D", label: "Cut off all clothing and equipment immediately before stabilization", isCorrect: false }], explanation: "Removing only one piece of equipment forces the neck into unnatural flexion or extension." },
+          { stage: "5. Return to Sport Clearance", question: "What imaging and clinical criteria are required before clearing an athlete post-cervical spine trauma?", options: [{ id: "A", label: "Full painless cervical ROM, normal strength, clear MRI/CT showing zero canal stenosis, and full recovery", isCorrect: true }, { id: "B", label: "Resolution of arm pain for 24 hours", isCorrect: false }, { id: "C", label: "Ability to wear a neck roll comfortably", isCorrect: false }, { id: "D", label: "Completion of 2 weeks in a soft cervical collar", isCorrect: false }], explanation: "Clearance requires structural imaging clearance and complete functional/neurological recovery." }
+        ]
+      },
+      {
+        id: 9,
+        title: "Case 9: Lateral Ankle Sprain",
+        category: "Lower Extremity & Joint Ligaments",
+        youtubeId: "kJQP7kiw5Fk",
+        questions: [
+          { stage: "1. Mechanism of Injury", question: "What primary combination of joint movements causes an acute inversion lateral ankle sprain?", options: [{ id: "A", label: "Ankle plantarflexion and inversion", isCorrect: true }, { id: "B", label: "Dorsiflexion and eversion", isCorrect: false }, { id: "C", label: "Pure axial compression with foot adduction", isCorrect: false }, { id: "D", label: "External rotation of the talus on the tibia", isCorrect: false }], explanation: "Plantarsurfaced inversion places maximal tensile stress across the lateral ligament complex." },
+          { stage: "2. Differential Diagnosis", question: "Which ligament is most commonly injured first in a typical lateral ankle inversion sprain?", options: [{ id: "A", label: "Anterior Talofibular Ligament (ATFL)", isCorrect: true }, { id: "B", label: "Calcaneofibular Ligament (CFL)", isCorrect: false }, { id: "C", label: "Deltoid Ligament complex", isCorrect: false }, { id: "D", label: "Posterior Talofibular Ligament (PTFL)", isCorrect: false }], explanation: "The ATFL is the weakest and most frequently torn lateral ankle ligament." },
+          { stage: "3. Acute On-Field Management", question: "What physical diagnostic guidelines determine if radiographs are needed for an acute ankle injury?", options: [{ id: "A", label: "Ottawa Ankle Rules (bony tenderness over posterior malleoli, navicular, or 5th metatarsal base)", isCorrect: true }, { id: "B", label: "Lachman Diagnostic Rules", isCorrect: false }, { id: "C", label: "Thompson Calf Squeeze Criteria", isCorrect: false }, { id: "D", label: "West Point Ankle Score", isCorrect: false }], explanation: "Ottawa Ankle Rules provide highly sensitive criteria to rule out unnecessary X-rays." },
+          { stage: "4. Interventions & Rehabilitation", question: "What functional training component is vital to prevent recurrent ankle sprains during dynamic sports?", options: [{ id: "A", label: "Progressive neuromuscular balance, proprioceptive retraining, and peroneal strength development", isCorrect: true }, { id: "B", label: "Prolonged non-weight-bearing casting for 6 weeks", isCorrect: false }, { id: "C", label: "Heavy concentric calf raises only", isCorrect: false }, { id: "D", label: "Immobilization in a rigid knee brace", isCorrect: false }], explanation: "Proprioceptive and dynamic neuromuscular training significantly reduces re-injury rates." },
+          { stage: "5. Return to Sport Clearance", question: "What functional test demonstrates readiness to return to field sports following a Grade II lateral ankle sprain?", options: [{ id: "A", label: "Pain-free figure-8 agility run, single-leg hop test (>90% symmetry), and dynamic cutting drills", isCorrect: true }, { id: "B", label: "Ability to walk 100 steps on flat terrain", isCorrect: false }, { id: "C", label: "Absence of lateral malleolus skin bruising", isCorrect: false }, { id: "D", label: "Passive ankle inversion matching opposite side", isCorrect: false }], explanation: "Return to play requires dynamic multi-directional stability and confidence during agility testing." }
+        ]
+      },
+      {
+        id: 10,
+        title: "Case 10: Hamstring Muscle Strain",
+        category: "Posterior Thigh Mechanics",
+        youtubeId: "L_LUpnjgPso",
+        questions: [
+          { stage: "1. Mechanism of Injury", question: "During which phase of high-speed sprinting does the hamstring complex experience its maximum strain?", options: [{ id: "A", label: "Terminal swing phase during eccentric deceleration of the extending lower leg", isCorrect: true }, { id: "B", label: "Stance phase during initial contact", isCorrect: false }, { id: "C", label: "Mid-support phase during hip extension", isCorrect: false }, { id: "D", label: "Early swing phase during knee flexion", isCorrect: false }], explanation: "Hamstring strains occur under high eccentric load as the muscle lengthens to decelerate the swing leg." },
+          { stage: "2. Differential Diagnosis", question: "Which hamstring muscle belly is most frequently injured during high-speed running activities?", options: [{ id: "A", label: "Biceps Femoris (long head)", isCorrect: true }, { id: "B", label: "Semitendinosus", isCorrect: false }, { id: "C", label: "Semimembranosus", isCorrect: false }, { id: "D", label: "Gracilis", isCorrect: false }], explanation: "The long head of the biceps femoris sustains the highest stretch and activation during terminal swing." },
+          { stage: "3. Acute On-Field Management", question: "What immediate management framework is recommended within the first 48 hours for an acute muscle strain?", options: [{ id: "A", label: "PEACE & LOVE protocol (Protect, Elevate, Avoid anti-inflammatories, Compress, Educate & Load)", isCorrect: true }, { id: "B", label: "Immediate deep friction massage over acute tear", isCorrect: false }, { id: "C", label: "Aggressive passive static stretching to maximum end-range", isCorrect: false }, { id: "D", label: "Application of high-heat hydrocollator packs", isCorrect: false }], explanation: "Modern acute management emphasizes protection, compression, and early optimal loading over complete rest." },
+          { stage: "4. Interventions & Rehabilitation", question: "What exercise mode has been proven most effective in hamstring strain rehabilitation and secondary prevention?", options: [{ id: "A", label: "High-load eccentric strengthening (e.g., Nordic Hamstring Curls) at long muscle lengths", isCorrect: true }, { id: "B", label: "Low-intensity isometric leg curls", isCorrect: false }, { id: "C", label: "Passive hamstring stretching on a slant board", isCorrect: false }, { id: "D", label: "Concentric-only leg extension exercises", isCorrect: false }], explanation: "Eccentric overload training shifts the optimal length-tension relationship toward longer muscle lengths." },
+          { stage: "5. Return to Sport Clearance", question: "What objective strength metric is required before clearing a sprinter following a Grade II biceps femoris strain?", options: [{ id: "A", label: ">90% limb symmetry on eccentric hamstring dynamometry and pain-free full-velocity sprinting drills", isCorrect: true }, { id: "B", label: "4 weeks of calendar rest regardless of strength", isCorrect: false }, { id: "C", label: "Ability to jog at 50% pace without limping", isCorrect: false }, { id: "D", label: "Absence of tenderness during seated palpation", isCorrect: false }], explanation: "High-speed sprinting requires proven eccentric strength symmetry and graduated velocity exposure." }
+        ]
+      }
+    ];
+
+    function App() {
+      const [role, setRole] = useState(null);
+      const [studentName, setStudentName] = useState('');
+      const [clientId] = useState(() => 'user_' + Math.random().toString(36).substr(2, 9));
+
+      const [sessionState, setSessionState] = useState({
+        caseIndex: 0,
+        qIndex: -1,
+        gameState: 'case_intro',
+        timeLeft: 30
+      });
+
+      const [selectedOption, setSelectedOption] = useState(null);
+      const [myScore, setMyScore] = useState(0);
+      const [myStreak, setMyStreak] = useState(0);
+      const [participants, setParticipants] = useState({});
+      const [dbRef, setDbRef] = useState(null);
+
+      const [shuffledOptions, setShuffledOptions] = useState([]);
+
+      const currentCase = casesData[sessionState?.caseIndex || 0] || casesData[0];
+      const isIntro = sessionState.gameState === 'case_intro' || sessionState.qIndex === -1;
+      const currentQuestion = !isIntro ? currentCase.questions[sessionState.qIndex] : null;
+
+      // Randomize options locally per device every time a question loads
+      useEffect(() => {
+        if (!currentQuestion || !currentQuestion.options) {
+          setShuffledOptions([]);
+          return;
+        }
+        let opts = JSON.parse(JSON.stringify(currentQuestion.options));
+        for (let i = opts.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [opts[i], opts[j]] = [opts[j], opts[i]];
+        }
+        const finalOpts = opts.map((opt, idx) => ({
+          ...opt,
+          id: String.fromCharCode(65 + idx)
+        }));
+        setShuffledOptions(finalOpts);
+        setSelectedOption(null);
+      }, [sessionState.caseIndex, sessionState.qIndex]);
+
+      useEffect(() => {
+        try {
+          if (typeof firebase !== 'undefined' && FIREBASE_DATABASE_URL) {
+            if (!firebase.apps.length) {
+              firebase.initializeApp({ databaseURL: FIREBASE_DATABASE_URL });
+            }
+            const database = firebase.database();
+            setDbRef(database);
+
+            const stateRef = database.ref('classroom/state');
+            stateRef.on('value', (snapshot) => {
+              const val = snapshot.val();
+              if (val) {
+                setSessionState(val);
+              } else {
+                database.ref('classroom/state').set({
+                  caseIndex: 0,
+                  qIndex: -1,
+                  gameState: 'case_intro',
+                  timeLeft: 30
+                });
+              }
+            });
+
+            const rosterRef = database.ref('classroom/roster');
+            rosterRef.on('value', (snapshot) => {
+              const val = snapshot.val();
+              if (val) setParticipants(val);
+              else setParticipants({});
+            });
+
+            return () => {
+              stateRef.off();
+              rosterRef.off();
+            };
+          }
+        } catch (err) {
+          console.warn("Cloud sync initialization notice:", err);
+        }
+      }, []);
+
+      const handleJoinStudent = () => {
+        if (!studentName.trim()) {
+          alert('Please enter your full name.');
+          return;
+        }
+        setRole('student');
+        if (dbRef) {
+          try {
+            dbRef.ref(`classroom/roster/${clientId}`).set({
+              name: studentName,
+              score: 0,
+              status: 'Active'
+            });
+          } catch(e) {}
+        }
+      };
+
+      const handleJoinPresenter = () => {
+        setRole('presenter');
+      };
+
+      const updateCloudState = (updates) => {
+        const newState = { ...sessionState, ...updates };
+        setSessionState(newState);
+        if (dbRef) {
+          try {
+            dbRef.ref('classroom/state').set(newState);
+          } catch(e) {}
+        }
+      };
+
+      const handleRestartSession = () => {
+        if (confirm("Start a brand new session? This will clear all previous student rosters and reset back to Case 1 Intro.")) {
+          const freshState = {
+            caseIndex: 0,
+            qIndex: -1,
+            gameState: 'case_intro',
+            timeLeft: 30
+          };
+          if (dbRef) {
+            try {
+              dbRef.ref('classroom/roster').remove();
+              dbRef.ref('classroom/state').set(freshState);
+            } catch(e) {}
+          }
+          setSessionState(freshState);
+          setMyScore(0);
+          setMyStreak(0);
+          setSelectedOption(null);
+        }
+      };
+
+      useEffect(() => {
+        if (role !== 'presenter' || sessionState.gameState !== 'question') return;
+        if (sessionState.timeLeft <= 0) {
+          updateCloudState({ gameState: 'revealed' });
+          return;
+        }
+        const timer = setInterval(() => {
+          updateCloudState({ timeLeft: sessionState.timeLeft - 1 });
+        }, 1000);
+        return () => clearInterval(timer);
+      }, [sessionState.timeLeft, sessionState.gameState, role, dbRef]);
+
+      const handlePresenterNext = () => {
+        if (sessionState.gameState === 'case_intro') {
+          updateCloudState({
+            qIndex: 0,
+            gameState: 'question',
+            timeLeft: 30
+          });
+        } else if (sessionState.gameState === 'question') {
+          updateCloudState({ gameState: 'revealed' });
+        } else if (sessionState.gameState === 'revealed') {
+          if (sessionState.qIndex < currentCase.questions.length - 1) {
+            updateCloudState({
+              qIndex: sessionState.qIndex + 1,
+              gameState: 'question',
+              timeLeft: 30
+            });
+          } else if (sessionState.caseIndex < casesData.length - 1) {
+            updateCloudState({
+              caseIndex: sessionState.caseIndex + 1,
+              qIndex: -1,
+              gameState: 'case_intro',
+              timeLeft: 30
+            });
+          } else {
+            updateCloudState({ gameState: 'final_leaderboard' });
+          }
+        }
+      };
+
+      const handleStudentSubmit = (optId) => {
+        if (selectedOption !== null || sessionState.gameState !== 'question' || !currentQuestion) return;
+        setSelectedOption(optId);
+
+        const chosen = shuffledOptions.find(o => o.id === optId);
+        let earned = 0;
+        let newStreak = myStreak;
+
+        if (chosen && chosen.isCorrect) {
+          earned = Math.round((1000 + (sessionState.timeLeft * 15)) * (1 + (myStreak * 0.15)));
+          newStreak += 1;
+          setMyStreak(newStreak);
+        } else {
+          newStreak = 0;
+          setMyStreak(0);
+        }
+
+        const newScore = myScore + earned;
+        setMyScore(newScore);
+
+        if (dbRef) {
+          try {
+            dbRef.ref(`classroom/roster/${clientId}`).update({
+              score: newScore,
+              status: 'Answered'
+            });
+          } catch(e) {}
+        }
+      };
+
+      if (!role) {
+        return (
+          <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center p-4">
+            <div className="max-w-md w-full bg-slate-900 border border-slate-800 rounded-2xl p-8 shadow-2xl text-center space-y-6">
+              <div className="inline-flex p-3 bg-brand-500/10 text-brand-500 rounded-xl">
+                <svg className="w-10 h-10" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"/></svg>
+              </div>
+              <div>
+                <h1 className="text-2xl font-bold text-white tracking-tight">Clinical Integrations in Sports</h1>
+                <p className="text-slate-400 text-sm mt-1">Live Classroom Session (10 Cases)</p>
+              </div>
+              
+              <div className="bg-slate-950 p-4 rounded-xl border border-slate-800 text-left space-y-3">
+                <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider">Your Name (For Live Roster)</label>
+                <input 
+                  type="text" 
+                  placeholder="Enter full name" 
+                  value={studentName}
+                  onChange={(e) => setStudentName(e.target.value)}
+                  className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-brand-500"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4 pt-2">
+                <button onClick={handleJoinStudent} className="w-full bg-brand-600 hover:bg-brand-500 text-white font-semibold py-3 px-4 rounded-xl shadow-lg shadow-brand-600/20">Join Student</button>
+                <button onClick={handleJoinPresenter} className="w-full bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold py-3 px-4 rounded-xl border border-slate-700">Presenter Screen</button>
+              </div>
+              <div className="text-xs text-slate-500">Room Code: <span className="text-brand-500 font-bold">CLINICAL-2026</span></div>
+            </div>
+          </div>
+        );
+      }
+
+      if (sessionState.gameState === 'final_leaderboard') {
+        const sortedRoster = Object.values(participants || {}).sort((a,b) => b.score - a.score);
+        return (
+          <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center p-6">
+            <div className="max-w-xl w-full bg-slate-900 border border-slate-800 rounded-3xl p-8 shadow-2xl space-y-6 text-center">
+              <div className="inline-flex p-3 bg-brand-500/20 text-brand-400 rounded-full font-bold text-xs uppercase tracking-widest">🏆 Final Course Leaderboard</div>
+              <h2 className="text-2xl font-black text-white">Top Clinical Performers</h2>
+
+              <div className="space-y-3 text-left max-h-96 overflow-y-auto">
+                {sortedRoster.map((p, idx) => (
+                  <div key={idx} className={`p-4 rounded-xl border flex justify-between items-center ${idx === 0 ? 'bg-amber-500/10 border-amber-500/50 text-amber-200' : 'bg-slate-950 border-slate-800 text-slate-300'}`}>
+                    <div className="flex items-center space-x-3">
+                      <span className={`w-7 h-7 rounded-full flex items-center justify-center font-bold text-xs ${idx === 0 ? 'bg-amber-500 text-slate-950' : 'bg-slate-800 text-slate-300'}`}>{idx + 1}</span>
+                      <span className="font-semibold">{p.name}</span>
+                    </div>
+                    <span className="font-mono font-bold text-brand-400">{p.score} pts</span>
+                  </div>
+                ))}
+              </div>
+
+              <button 
+                onClick={handleRestartSession}
+                className="w-full bg-brand-600 hover:bg-brand-500 text-white font-bold py-3 rounded-2xl transition shadow-lg shadow-brand-600/20"
+              >
+                Start New Session / Clear Roster
+              </button>
+            </div>
+          </div>
+        );
+      }
+
+      if (role === 'presenter') {
+        const rosterList = Object.values(participants || {});
+        return (
+          <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col">
+            <header className="bg-slate-900 border-b border-slate-800 px-6 py-4 flex justify-between items-center">
+              <div className="flex items-center space-x-3">
+                <span className="bg-brand-500/20 text-brand-400 border border-brand-500/30 text-xs px-2.5 py-1 rounded-full font-bold">Presenter Control</span>
+                <h1 className="font-bold text-lg text-white">{currentCase.title} &bull; {isIntro ? 'Case Video Intro' : `Question ${sessionState.qIndex + 1} of 5`}</h1>
+              </div>
+              <div className="flex items-center space-x-3">
+                <button onClick={handleRestartSession} className="text-xs bg-amber-600/20 hover:bg-amber-600/30 text-amber-400 border border-amber-500/30 px-3 py-1.5 rounded-lg font-semibold">Start New Session</button>
+                <button onClick={() => setRole(null)} className="text-xs bg-slate-800 hover:bg-slate-700 px-3 py-1.5 rounded-lg border border-slate-700">Exit Session</button>
+              </div>
+            </header>
+
+            <main className="flex-1 p-6 grid grid-cols-1 lg:grid-cols-3 gap-6 max-w-7xl mx-auto w-full">
+              <div className="lg:col-span-2 space-y-6">
+                <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
+                  <div className="p-4 border-b border-slate-800 flex justify-between items-center bg-slate-950/50">
+                    <span className="text-xs font-bold uppercase tracking-wider text-brand-400">{currentCase.category}</span>
+                    <span className="text-xs bg-slate-800 px-2 py-1 rounded text-slate-300">Case {(sessionState?.caseIndex || 0) + 1} / 10</span>
+                  </div>
+                  <div className="aspect-video w-full bg-black">
+                    <iframe 
+                      src={`https://www.youtube.com/embed/${currentCase.youtubeId}?autoplay=1&mute=1&rel=0`} 
+                      title={currentCase.title} 
+                      className="w-full h-full" 
+                      referrerPolicy="strict-origin-when-cross-origin" 
+                      allow="autoplay; encrypted-media; picture-in-picture"
+                      allowFullScreen>
+                    </iframe>
+                  </div>
+                </div>
+
+                {!isIntro && currentQuestion && (
+                  <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-4">
+                    <div className="text-xs font-bold uppercase tracking-wider text-brand-400">{currentQuestion.stage}</div>
+                    <h2 className="text-lg font-bold text-white">{currentQuestion.question}</h2>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      {shuffledOptions.map(opt => (
+                        <div key={opt.id} className={`p-4 rounded-xl border flex items-center justify-between ${sessionState.gameState === 'revealed' && opt.isCorrect ? 'bg-emerald-950/40 border-emerald-500 text-emerald-200' : 'bg-slate-950 border-slate-800 text-slate-300'}`}>
+                          <div className="flex items-center space-x-3">
+                            <span className="w-7 h-7 rounded-lg bg-slate-800 flex items-center justify-center font-bold text-xs">{opt.id}</span>
+                            <span className="text-sm font-medium">{opt.label}</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    {sessionState.gameState === 'revealed' && (
+                      <div className="mt-4 p-4 rounded-xl bg-brand-950/30 border border-brand-500/30 text-brand-200 text-sm">
+                        <strong>Clinical Rationale:</strong> {currentQuestion.explanation}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              <div className="space-y-6">
+                <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 text-center space-y-4 shadow-xl">
+                  {isIntro ? (
+                    <>
+                      <div className="text-xs font-semibold uppercase tracking-wider text-brand-400">Case Video Preview</div>
+                      <p className="text-xs text-slate-400">Review the clinical case video with your audience before starting the evaluation questions.</p>
+                      <button onClick={handlePresenterNext} className="w-full py-4 bg-brand-600 hover:bg-brand-500 text-white font-bold rounded-xl shadow-lg shadow-brand-600/20">
+                        Start Question 1 →
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <div className="text-xs font-semibold uppercase tracking-wider text-slate-400">Classroom Synced Timer</div>
+                      <div className="text-6xl font-black text-brand-400">{sessionState.timeLeft}s</div>
+                      <button onClick={handlePresenterNext} className="w-full py-3 bg-brand-600 hover:bg-brand-500 text-white font-bold rounded-xl shadow-lg shadow-brand-600/20">
+                        {sessionState.gameState === 'question' ? 'Reveal Rationale' : 'Next Question →'}
+                      </button>
+                    </>
+                  )}
+                </div>
+
+                <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-3">
+                  <div className="text-xs font-semibold uppercase tracking-wider text-slate-400">Live Student Roster ({rosterList.length} Connected)</div>
+                  <div className="space-y-2 max-h-64 overflow-y-auto">
+                    {rosterList.length === 0 ? (
+                      <div className="text-xs text-slate-500 italic">Waiting for students to join...</div>
+                    ) : (
+                      rosterList.map((p, idx) => (
+                        <div key={idx} className="p-2.5 rounded-lg bg-slate-950 border border-slate-800 flex justify-between items-center text-xs">
+                          <span className="text-slate-200 font-medium">{p.name}</span>
+                          <div className="flex items-center space-x-2">
+                            <span className="text-brand-400 font-mono font-bold">{p.score} pts</span>
+                            <span className={`px-2 py-0.5 rounded font-bold ${p.status === 'Answered' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-amber-500/20 text-amber-400'}`}>
+                              {p.status}
+                            </span>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              </div>
+            </main>
+          </div>
+        );
+      }
+
+      return (
+        <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col p-4 max-w-lg mx-auto justify-between">
+          <header className="flex justify-between items-center py-3 border-b border-slate-800">
+            <div>
+              <span className="text-xs text-brand-400 font-semibold">Student Portal</span>
+              <div className="text-sm font-bold text-white">{studentName}</div>
+            </div>
+            <div className="text-right">
+              <div className="text-xs text-slate-400">Score</div>
+              <div className="text-lg font-black text-brand-400">{myScore} pts</div>
+            </div>
+          </header>
+
+          <main className="py-6 space-y-6">
+            {isIntro ? (
+              <div className="bg-slate-900 border border-slate-800 rounded-2xl p-8 text-center space-y-6 shadow-xl my-auto">
+                <div className="inline-flex p-3 bg-brand-500/10 text-brand-400 rounded-full font-bold text-xs uppercase tracking-widest">Case Video Preview</div>
+                <h2 className="text-xl font-bold text-white">{currentCase.title}</h2>
+                <p className="text-xs text-slate-400">Please watch the video on the presenter screen. Questions will begin shortly when the presenter starts the session.</p>
+                <div className="text-xs text-brand-400 font-semibold animate-pulse pt-4">Waiting for presenter to start questions...</div>
+              </div>
+            ) : (
+              <>
+                <div className="flex justify-between items-center bg-slate-900 border border-slate-800 px-4 py-3 rounded-xl">
+                  <div>
+                    <div className="text-xs font-bold text-brand-400">{currentQuestion?.stage}</div>
+                    <div className="text-xs text-slate-400">Case {(sessionState?.caseIndex || 0) + 1} / 10 &bull; Question {(sessionState?.qIndex || 0) + 1}/5</div>
+                  </div>
+                  <span className="text-xs bg-brand-500/20 text-brand-400 px-2.5 py-1 rounded-full font-bold">Streak: {myStreak}🔥</span>
+                </div>
+
+                <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-4 shadow-xl">
+                  <h2 className="text-sm font-bold text-white leading-relaxed">{currentQuestion?.question}</h2>
+
+                  <div className="space-y-3 pt-2">
+                    {shuffledOptions.map(opt => {
+                      const isSelected = selectedOption === opt.id;
+                      const isRevealed = sessionState.gameState === 'revealed';
+                      let btnColor = "bg-slate-950 border-slate-800 text-slate-200 hover:border-slate-600";
+                      if (isSelected) btnColor = "bg-brand-950 border-brand-500 text-brand-200 ring-2 ring-brand-500/30";
+                      if (isRevealed && opt.isCorrect) btnColor = "bg-emerald-950 border-emerald-500 text-emerald-200";
+
+                      return (
+                        <button
+                          key={opt.id}
+                          disabled={selectedOption !== null || sessionState.gameState === 'revealed'}
+                          onClick={() => handleStudentSubmit(opt.id)}
+                          className={`w-full p-4 rounded-xl border text-left font-medium text-xs leading-normal transition flex items-center justify-between ${btnColor} ${selectedOption !== null ? 'opacity-80 cursor-not-allowed' : ''}`}
+                        >
+                          <div className="flex items-start space-x-3">
+                            <span className="w-5 h-5 rounded bg-slate-800 flex items-center justify-center font-bold text-xs shrink-0 mt-0.5">{opt.id}</span>
+                            <span>{opt.label}</span>
+                          </div>
+                          {isSelected && <span className="text-xs text-brand-400 font-bold">Submitted</span>}
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {sessionState.gameState === 'revealed' && (
+                    <div className="mt-4 p-4 rounded-xl bg-slate-950 border border-slate-800 text-xs text-slate-300 space-y-2">
+                      <strong className="text-white block">Clinical Rationale:</strong>
+                      <p>{currentQuestion?.explanation}</p>
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
+          </main>
+
+          <footer className="text-center py-4 border-t border-slate-800 text-xs text-slate-500">
+            Clinical Integrations in Sports &bull; Room: CLINICAL-2026
+          </footer>
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
+</body>
+</html>
